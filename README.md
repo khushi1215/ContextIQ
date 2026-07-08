@@ -1,22 +1,76 @@
-RAG-based Document Q&A System
+# ContextIQ — RAG-based Document Q&A System
 
-This project is a Retrieval-Augmented Generation (RAG) based Document Question Answering System built using FastAPI, Streamlit, FAISS, Sentence Transformers, and Ollama.
-The application allows a user to upload a PDF document, generate embeddings, store them in a FAISS vector database, and ask questions that are answered only using the uploaded document.
+Transform documents into an intelligent, searchable knowledge base.
 
-Technologies Used:
-* Python
-* FastAPI
-* Streamlit
-* FAISS
-* Sentence Transformers
-* Ollama
-* SQLite
-* Pydantic
-* NumPy
-* PyPDF
+ContextIQ is a Retrieval-Augmented Generation (RAG) system that lets you upload a PDF, ask questions in natural language, and get answers grounded **only** in that document — with full source attribution, so every answer can be traced back to the exact chunk it came from.
 
-Project Structure:
-VeStaff/
+## Why I built this
+
+Most portfolio projects show a single skill in isolation — a model here, a dashboard there. I wanted a project that reflects how AI-powered products are actually built end-to-end: ingestion pipeline, vector search, local LLM inference, backend API, and a usable frontend, wired together as one working system.
+
+## Demo
+
+**App overview:**
+
+![ContextIQ app overview](docs/screenshots/overview.png)
+
+**Ask a question, get a grounded answer with sources:**
+
+![Q&A with sourced answer](docs/screenshots/qa-answer.png)
+
+**Analytics dashboard tracking real usage:**
+
+![Usage analytics](docs/screenshots/analytics.png)
+
+*(In testing: 20 questions asked, 0 failed due to missing context, ~18s average response time on local CPU inference via a 1.5B model — see [Limitations](#limitations--future-work) for why this number matters.)*
+
+## How it works
+
+```
+PDF Upload
+   ↓
+Text Extraction (PyPDF)
+   ↓
+Text Chunking
+   ↓
+Embedding Generation (Sentence Transformers — all-MiniLM-L6-v2)
+   ↓
+FAISS Index Creation
+   ↓
+Question Embedding → Similarity Search → Context Retrieval
+   ↓
+Answer Generation (Ollama — Qwen2.5:1.5B)
+   ↓
+Response + Source Chunks
+```
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Backend | FastAPI |
+| Frontend | Streamlit |
+| Embeddings | Sentence Transformers (`all-MiniLM-L6-v2`) |
+| Vector Store | FAISS |
+| LLM Inference | Ollama (Qwen2.5:1.5B, local) |
+| Query Logging | SQLite |
+| Validation | Pydantic |
+| PDF Parsing | PyPDF |
+
+## Features
+
+- PDF document ingestion with automatic text chunking
+- Local embedding generation, no external API calls
+- FAISS similarity search for context retrieval
+- Fully local LLM inference (no data leaves your machine)
+- Source-chunk attribution for every answer — no black-box responses
+- Usage analytics dashboard (query count, response time, frequently asked questions)
+- SQLite-backed query logging
+
+## Project Structure
+
+```
+ContextIQ/
 │
 ├── backend/
 │   ├── data/
@@ -39,111 +93,105 @@ VeStaff/
 ├── README.md
 ├── .env.example
 └── .gitignore
+```
 
-Setup:
-1. Clone the repository.
+## Setup
+
+**1. Clone the repository**
+```bash
 git clone <repository_url>
-cd VeStaff
+cd ContextIQ
+```
 
-2. Create a virtual environment.
-Windows
+**2. Create a virtual environment**
+
+Windows:
+```bash
 python -m venv venv
 venv\Scripts\activate
+```
 
-Linux / macOS
+Linux / macOS:
+```bash
 python3 -m venv venv
 source venv/bin/activate
+```
 
-3. Install the required packages.
+**3. Install dependencies**
+```bash
 pip install -r requirements.txt
+```
 
-4. Install Ollama.
-Download and install Ollama from:
-https://ollama.com
+**4. Install Ollama**
 
-5. Pull the language model.
+Download from [ollama.com](https://ollama.com)
+
+**5. Pull the language model**
+```bash
 ollama pull qwen2.5:1.5b
+```
 
-6. Copy the environment file.
+**6. Configure environment**
+```bash
 copy .env.example .env
-The default configuration uses:
+```
+Default configuration:
+```
 LLM_PROVIDER=ollama
 LLM_MODEL=qwen2.5:1.5b
 OLLAMA_URL=http://localhost:11434/api/generate
+```
 
-Running the Application:
-1. Start Ollama.
+## Running the Application
+
+**1. Start Ollama**
+```bash
 ollama serve
+```
 
-2. Start the FastAPI backend.
-uvicorn backend.main:app --reload (or uvicorn backend.main:app)
-The backend will run at:
-http://localhost:8000
+**2. Start the FastAPI backend**
+```bash
+uvicorn backend.main:app --reload
+```
+Backend runs at `http://localhost:8000`
 
-3. Start the Streamlit frontend.
-Open another terminal.
+**3. Start the Streamlit frontend** (in a new terminal)
+```bash
 streamlit run frontend/app.py
-The frontend will open at:
-http://localhost:8501
+```
+Frontend opens at `http://localhost:8501`
 
-How to Use:
-1. Open the Streamlit application.
-2. Upload a PDF document.
-3. Click *Ingest*.
-4. Wait until the ingestion process completes successfully.
-5. Enter a question related to the uploaded document.
-6. View the generated answer along with the retrieved source chunks.
-7. Open the Analytics tab to view query statistics.
+## How to Use
 
-Pipeline:
-Document Upload
-↓
-PDF Text Extraction
-↓
-Text Chunking
-↓
-Embedding Generation
-↓
-FAISS Index Creation
-↓
-Question Embedding
-↓
-Similarity Search
-↓
-Context Retrieval
-↓
-Answer Generation using Ollama
-↓
-Response with Source Chunks
+1. Open the Streamlit app
+2. Upload a PDF document
+3. Click **Process document**
+4. Wait for ingestion to complete
+5. Enter a question about the document
+6. View the answer along with the source chunks it was generated from
+7. Check the **Analytics** tab for query statistics
 
-Features:
-* PDF document ingestion
-* Automatic text chunking
-* Sentence Transformer embeddings
-* FAISS vector search
-* Local LLM inference using Ollama
-* Source attribution for every answer
-* Analytics dashboard
-* SQLite query logging
-* FastAPI backend
-* Streamlit frontend
+## API Endpoints
 
-API Endpoints:
-Health Check
-GET /health
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/health` | Health check |
+| POST | `/ingest` | Upload and process a document |
+| POST | `/ask` | Ask a question |
+| GET | `/analytics` | Retrieve usage statistics |
 
-Upload Document
-POST /ingest
+## Limitations & Future Work
 
-Ask Question
-POST /ask
+- **Model size trade-off**: uses Qwen2.5:1.5B for fast local inference on modest hardware — this keeps the system fully local and free to run, but answer quality and response time (~18s average) trail larger hosted models. A configurable option to swap in a larger local or hosted model is a natural next step.
+- **Single-document context**: currently answers from one ingested document at a time; multi-document retrieval is a planned extension.
+- **No deployed demo yet**: currently local-only. Deploying the backend + frontend (e.g. Streamlit Community Cloud + a hosted API) is planned so reviewers can try it without local setup.
+- **Chunking strategy**: uses a straightforward fixed-size chunking approach; experimenting with semantic chunking could improve retrieval relevance.
+- **No formal retrieval evaluation yet**: response time is logged, but retrieval precision/recall isn't yet benchmarked against a labeled question set — planned as a next step to quantify answer quality beyond "it works."
 
-Analytics
-GET /analytics
+## Notes
 
-Notes:
-* The backend must be running before starting the frontend.
-* Ollama must be running before asking questions.
-* A document must be ingested before any questions can be answered.
-* The FAISS index and metadata are generated after a successful ingestion.
-* The application answers only from the uploaded document and does not use external knowledge.
+- The backend must be running before starting the frontend
+- Ollama must be running before asking questions
+- A document must be ingested before questions can be answered
+- The FAISS index and metadata are generated after successful ingestion
+- The application answers only from the uploaded document and does not use external knowledge
